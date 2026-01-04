@@ -19,13 +19,23 @@ const App = () => {
 
   // LocalStorage থেকে ডেটা লোড করার জন্য ইনিশিয়াল স্টেট ফাংশন
   const [events, setEvents] = useState(() => {
-    const saved = localStorage.getItem("planner_events");
-    return saved ? JSON.parse(saved) : {};
+    try {
+      const saved = localStorage.getItem("planner_events");
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      console.error("Error loading events from localStorage", e);
+      return {};
+    }
   });
 
   const [monthGeneralTodos, setMonthGeneralTodos] = useState(() => {
-    const saved = localStorage.getItem("planner_month_todos");
-    return saved ? JSON.parse(saved) : {};
+    try {
+      const saved = localStorage.getItem("planner_month_todos");
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      console.error("Error loading month todos from localStorage", e);
+      return {};
+    }
   });
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -157,7 +167,9 @@ const App = () => {
     const sortedKeys = Object.keys(events)
       .filter((k) => k.startsWith(prefix))
       .sort((a, b) => {
-        return parseInt(a.split("-")[2]) - parseInt(b.split("-")[2]);
+        const dayA = parseInt(a.split("-")[2]);
+        const dayB = parseInt(b.split("-")[2]);
+        return dayA - dayB;
       });
 
     sortedKeys.forEach((key) => {
@@ -189,6 +201,8 @@ const App = () => {
       currentDate.getFullYear(),
       currentDate.getMonth()
     );
+
+    // Empty slots for previous month days
     for (let i = 0; i < startDay; i++) {
       days.push(
         <div
@@ -197,6 +211,8 @@ const App = () => {
         ></div>
       );
     }
+
+    // Current month days
     for (let day = 1; day <= totalDays; day++) {
       const dateKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}-${day}`;
       const isToday =
@@ -250,6 +266,7 @@ const App = () => {
   return (
     <div className="min-h-screen bg-slate-50 p-2 sm:p-8 font-sans">
       <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200">
+        {/* Header Section */}
         <div className="bg-white border-b border-slate-100 p-6 flex flex-col lg:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="bg-blue-600 p-2.5 rounded-xl text-white shadow-lg shadow-blue-200">
@@ -296,6 +313,8 @@ const App = () => {
             </div>
           </div>
         </div>
+
+        {/* Week Days Header */}
         <div className="grid grid-cols-7 bg-slate-50/50 border-b border-slate-100 font-bold text-[10px] text-slate-400 uppercase py-2">
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
             <div key={d} className="text-center">
@@ -303,6 +322,8 @@ const App = () => {
             </div>
           ))}
         </div>
+
+        {/* Calendar Grid */}
         <div className="grid grid-cols-7">{renderDays()}</div>
       </div>
 
@@ -390,7 +411,7 @@ const App = () => {
                       </span>
                       <button
                         onClick={() => deleteMonthTodo(todo.id)}
-                        className="p-1.5 text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                        className="p-1.5 text-slate-300 hover:text-red-500 transition-colors opacity-100"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -406,6 +427,7 @@ const App = () => {
               </>
             ) : (
               <div className="flex-1 overflow-y-auto p-6 space-y-8 bg-slate-50/30">
+                {/* Statistics Dashboard */}
                 <div className="grid grid-cols-3 gap-4">
                   <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm text-center">
                     <div className="text-2xl font-black text-slate-800">
@@ -436,6 +458,7 @@ const App = () => {
                   </div>
                 </div>
 
+                {/* Section: Month Goals */}
                 <section className="space-y-3">
                   <div className="flex items-center gap-2 text-purple-600 mb-2">
                     <ClipboardList size={18} />
@@ -479,6 +502,7 @@ const App = () => {
                   </div>
                 </section>
 
+                {/* Section: Daily Breakdown */}
                 <section className="space-y-4">
                   <div className="flex items-center gap-2 text-orange-600 mb-2">
                     <CalendarIcon size={18} />
@@ -546,7 +570,7 @@ const App = () => {
         </div>
       )}
 
-      {/* Day Modal */}
+      {/* Day Modal (Task Manager) */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[80vh]">
@@ -607,7 +631,7 @@ const App = () => {
                   >
                     {t.text}
                   </span>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex gap-1 transition-opacity">
                     <button
                       onClick={() => {
                         setTodoText(t.text);
