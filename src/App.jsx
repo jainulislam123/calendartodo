@@ -12,12 +12,15 @@ import {
   PieChart,
   ClipboardList,
   ArrowRight,
+  CalendarPlus,
+  Heart,
+  Github,
 } from "lucide-react";
 
 const App = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
 
-  // LocalStorage থেকে ডেটা লোড করার জন্য ইনিশিয়াল স্টেট ফাংশন
+  // LocalStorage theke data load korar jonno
   const [events, setEvents] = useState(() => {
     try {
       const saved = localStorage.getItem("planner_events");
@@ -46,9 +49,13 @@ const App = () => {
   const [monthInput, setMonthInput] = useState("");
   const [editingId, setEditingId] = useState(null);
 
+  // New State: Month goal theke daily-te assign korar jonno
+  const [assigningId, setAssigningId] = useState(null);
+  const [dayToAssign, setDayToAssign] = useState("");
+
   const monthKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}`;
 
-  // ডেটা পরিবর্তন হলে LocalStorage-এ সেভ করা
+  // Data change hole LocalStorage-e save hobe
   useEffect(() => {
     localStorage.setItem("planner_events", JSON.stringify(events));
   }, [events]);
@@ -109,6 +116,7 @@ const App = () => {
         id: Date.now().toString(),
         text: todoText,
         completed: false,
+        sourceGoalId: null,
       });
     }
 
@@ -117,12 +125,56 @@ const App = () => {
     setEditingId(null);
   };
 
+  const handleAssignToDay = (taskText, sourceGoalId) => {
+    const dayNum = parseInt(dayToAssign);
+    const maxDays = daysInMonth(
+      currentDate.getFullYear(),
+      currentDate.getMonth()
+    );
+
+    if (!dayNum || dayNum < 1 || dayNum > maxDays) {
+      return;
+    }
+
+    const dateKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}-${dayNum}`;
+    const newEvents = { ...events };
+    if (!newEvents[dateKey]) newEvents[dateKey] = [];
+
+    newEvents[dateKey].push({
+      id: Date.now().toString(),
+      text: taskText,
+      completed: false,
+      sourceGoalId: sourceGoalId,
+    });
+
+    setEvents(newEvents);
+    setAssigningId(null);
+    setDayToAssign("");
+  };
+
   const toggleDayTodo = (dateKey, id) => {
     const newEvents = { ...events };
-    newEvents[dateKey] = newEvents[dateKey].map((todo) =>
-      todo.id === id ? { ...todo, completed: !todo.completed } : todo
-    );
+    let linkedGoalId = null;
+    let targetStatus = false;
+
+    newEvents[dateKey] = newEvents[dateKey].map((todo) => {
+      if (todo.id === id) {
+        linkedGoalId = todo.sourceGoalId;
+        targetStatus = !todo.completed;
+        return { ...todo, completed: targetStatus };
+      }
+      return todo;
+    });
+
     setEvents(newEvents);
+
+    if (linkedGoalId && monthGeneralTodos[monthKey]) {
+      const newMonthTodos = { ...monthGeneralTodos };
+      newMonthTodos[monthKey] = newMonthTodos[monthKey].map((goal) =>
+        goal.id === linkedGoalId ? { ...goal, completed: targetStatus } : goal
+      );
+      setMonthGeneralTodos(newMonthTodos);
+    }
   };
 
   const deleteDayTodo = (dateKey, id) => {
@@ -202,7 +254,6 @@ const App = () => {
       currentDate.getMonth()
     );
 
-    // Empty slots for previous month days
     for (let i = 0; i < startDay; i++) {
       days.push(
         <div
@@ -212,7 +263,6 @@ const App = () => {
       );
     }
 
-    // Current month days
     for (let day = 1; day <= totalDays; day++) {
       const dateKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}-${day}`;
       const isToday =
@@ -264,8 +314,8 @@ const App = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-2 sm:p-8 font-sans">
-      <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200">
+    <div className="min-h-screen bg-slate-50 p-2 sm:p-8 font-sans flex flex-col">
+      <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200 flex-1 w-full">
         {/* Header Section */}
         <div className="bg-white border-b border-slate-100 p-6 flex flex-col lg:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -326,6 +376,32 @@ const App = () => {
         {/* Calendar Grid */}
         <div className="grid grid-cols-7">{renderDays()}</div>
       </div>
+
+      {/* Footer Section */}
+      <footer className="max-w-5xl mx-auto mt-8 pb-8 text-center w-full">
+        <a
+          href="https://jainulislam.netlify.app"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 px-6 py-3 bg-white rounded-2xl shadow-sm border border-slate-100 text-slate-600 hover:text-blue-600 hover:shadow-md transition-all group"
+        >
+          <span className="text-sm font-bold">Developed with</span>
+          <Heart
+            size={16}
+            className="text-red-500 fill-red-500 group-hover:scale-110 transition-transform"
+          />
+          <span className="text-sm font-bold">by</span>
+          <span className="text-sm font-black text-slate-800 group-hover:text-blue-600">
+            Jainul Islam
+          </span>
+          <img
+            src="https://jainulislam.netlify.app/images/logo.png"
+            alt=""
+            srcset=""
+            width={35}
+          />
+        </a>
+      </footer>
 
       {/* Month Modal */}
       {isMonthViewOpen && (
@@ -388,33 +464,83 @@ const App = () => {
                   {(monthGeneralTodos[monthKey] || []).map((todo) => (
                     <div
                       key={todo.id}
-                      className="group flex items-center gap-3 p-4 bg-white border border-slate-100 rounded-2xl shadow-sm hover:border-blue-200 transition-all"
+                      className="group flex flex-col gap-2 p-4 bg-white border border-slate-100 rounded-2xl shadow-sm hover:border-blue-200 transition-all"
                     >
-                      <button
-                        onClick={() => toggleMonthTodo(todo.id)}
-                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
-                          todo.completed
-                            ? "bg-green-500 border-green-500 text-white"
-                            : "border-slate-200"
-                        }`}
-                      >
-                        {todo.completed && <Check size={14} />}
-                      </button>
-                      <span
-                        className={`flex-1 text-sm font-medium ${
-                          todo.completed
-                            ? "text-slate-400 line-through"
-                            : "text-slate-700"
-                        }`}
-                      >
-                        {todo.text}
-                      </span>
-                      <button
-                        onClick={() => deleteMonthTodo(todo.id)}
-                        className="p-1.5 text-slate-300 hover:text-red-500 transition-colors opacity-100"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => toggleMonthTodo(todo.id)}
+                          className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
+                            todo.completed
+                              ? "bg-green-500 border-green-500 text-white"
+                              : "border-slate-200"
+                          }`}
+                        >
+                          {todo.completed && <Check size={14} />}
+                        </button>
+                        <span
+                          className={`flex-1 text-sm font-medium ${
+                            todo.completed
+                              ? "text-slate-400 line-through"
+                              : "text-slate-700"
+                          }`}
+                        >
+                          {todo.text}
+                        </span>
+
+                        <button
+                          onClick={() =>
+                            setAssigningId(
+                              assigningId === todo.id ? null : todo.id
+                            )
+                          }
+                          title="Assign to a day"
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            assigningId === todo.id
+                              ? "bg-blue-100 text-blue-600"
+                              : "text-slate-400 hover:text-blue-600"
+                          }`}
+                        >
+                          <CalendarPlus size={18} />
+                        </button>
+
+                        <button
+                          onClick={() => deleteMonthTodo(todo.id)}
+                          className="p-1.5 text-slate-300 hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+
+                      {assigningId === todo.id && (
+                        <div className="flex items-center gap-2 mt-2 p-3 bg-blue-50 rounded-xl border border-blue-100 animate-in slide-in-from-top-1 duration-200">
+                          <span className="text-[10px] font-bold uppercase text-blue-600">
+                            Assign to Day:
+                          </span>
+                          <input
+                            type="number"
+                            min="1"
+                            max="31"
+                            className="w-16 bg-white border border-blue-200 rounded-lg px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-blue-400"
+                            placeholder="1-31"
+                            value={dayToAssign}
+                            onChange={(e) => setDayToAssign(e.target.value)}
+                          />
+                          <button
+                            onClick={() =>
+                              handleAssignToDay(todo.text, todo.id)
+                            }
+                            className="bg-blue-600 text-white px-3 py-1 rounded-lg text-[10px] font-bold hover:bg-blue-700 transition-colors"
+                          >
+                            Add to Daily
+                          </button>
+                          <button
+                            onClick={() => setAssigningId(null)}
+                            className="text-slate-400"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                   {(!monthGeneralTodos[monthKey] ||
@@ -427,7 +553,6 @@ const App = () => {
               </>
             ) : (
               <div className="flex-1 overflow-y-auto p-6 space-y-8 bg-slate-50/30">
-                {/* Statistics Dashboard */}
                 <div className="grid grid-cols-3 gap-4">
                   <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm text-center">
                     <div className="text-2xl font-black text-slate-800">
@@ -458,7 +583,6 @@ const App = () => {
                   </div>
                 </div>
 
-                {/* Section: Month Goals */}
                 <section className="space-y-3">
                   <div className="flex items-center gap-2 text-purple-600 mb-2">
                     <ClipboardList size={18} />
@@ -502,7 +626,6 @@ const App = () => {
                   </div>
                 </section>
 
-                {/* Section: Daily Breakdown */}
                 <section className="space-y-4">
                   <div className="flex items-center gap-2 text-orange-600 mb-2">
                     <CalendarIcon size={18} />
